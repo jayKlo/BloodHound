@@ -7,7 +7,7 @@ The rolling release will always be updated to the most recent source. Tagged rel
 
 To get started with BloodHound, check out the [BloodHound Github Wiki.](https://github.com/BloodHoundAD/Bloodhound/wiki)
 
-BloodHound is a single page Javascript web application, built on top of [Linkurious](http://linkurio.us/), compiled with [Electron](http://electron.atom.io/), with a [Neo4j](https://neo4j.com/) database fed by a PowerShell ingestor.
+BloodHound is a single page Javascript web application, built on top of [Linkurious](http://linkurio.us/), compiled with [Electron](http://electron.atom.io/), with a [Neo4j](https://neo4j.com/) database fed by a C# data collector.
 
 BloodHound uses graph theory to reveal the hidden and often unintended relationships within an Active Directory environment. Attackers can use BloodHound to easily identify highly complex attack paths that would otherwise be impossible to quickly identify. Defenders can use BloodHound to identify and eliminate those same attack paths. Both blue and red teams can use BloodHound to easily gain a deeper understanding of privilege relationships in an Active Directory environment.
 
@@ -19,7 +19,7 @@ A sample database generator can be found [here](https://github.com/BloodHoundAD/
 
 BloodHound uses graph theory to reveal hidden relationships and
 attack paths in an Active Directory environment.
-Copyright (C) 2016 Andrew Robbins, Rohan Vazarkar, Will Schroeder
+Copyright (C) 2016-2019 Andrew Robbins, Rohan Vazarkar, Will Schroeder
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

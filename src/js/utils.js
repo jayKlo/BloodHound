@@ -53,7 +53,7 @@ export function buildSearchQuery(searchterm){
 
 export function buildSelectQuery(start, end){
     let startTerm, endTerm, apart, bpart;
-    
+
     if (start.includes(':')){
         let [type, search] = start.split(':')
         startTerm = search;
@@ -271,8 +271,10 @@ function processAceArray(array, objname, objtype, output) {
             rights.push("AllExtendedRights");
         } else if (acetype === "User-Force-Change-Password") {
             rights.push("ForceChangePassword");
-        } else if (acetype === "Member") {
+        } else if (acetype === "AddMember") {
             rights.push("AddMember");
+        }else if (acetype === "AllowedToAct"){
+            rights.push("AddAllowedToAct");
         } else if (right === "ExtendedRight") {
             rights.push(acetype);
         }
@@ -314,6 +316,25 @@ function processAceArray(array, objname, objtype, output) {
                 obj: objname
             });
         });
+    });
+}
+
+function processSPNTargetArray(array, username, output) {
+    let baseSpnQuery =
+        "UNWIND {props} AS prop MERGE (a:User {name:prop.principal}) MERGE (b:Computer {name: prop.obj}) MERGE (a)-[r:{} {isacl:false, port: prop.port}]->(b)";
+
+    $.each(array, function(_, spn) {
+        let target = spn.ComputerName;
+        let service  = spn.Service;
+        let port = spn.Port;
+
+        let hash = target + port + service;
+        let formatted = baseSpnQuery.format(service);
+        insert(output, hash, formatted, {
+            obj: target,
+            principal: username,
+            port: port
+        })
     });
 }
 
@@ -500,6 +521,12 @@ export function buildOuJson(chunk) {
         props: []
     };
 
+    queries.links = {
+        statement:
+            "UNWIND {props} as prop MERGE (n:OU {guid:prop.guid}) MERGE (m:GPO {name:prop.gpo}) MERGE (m)-[r:GpLink {enforced:prop.enforced, isacl:false}]->(n)",
+        props: []
+    };
+
     queries.childous = {
         statement:
             "UNWIND {props} AS prop MERGE (n:OU {guid:prop.parent}) MERGE (m:OU {guid:prop.child}) MERGE (n)-[r:Contains {isacl:false}]->(m)",
@@ -521,6 +548,18 @@ export function buildOuJson(chunk) {
     $.each(chunk, function(_, ou) {
         let guid = ou.Guid;
         let properties = ou.Properties;
+        
+        let links = ou.Links;
+        $.each(links, function (_, link) {
+            let enforced = link.IsEnforced;
+            let target = link.Name;
+
+            queries.links.props.push({
+                guid: guid,
+                gpo: target,
+                enforced: enforced
+            });
+        });
 
         queries.properties.props.push({ guid: guid, map: properties });
 
@@ -603,7 +642,6 @@ export function buildGpoAdminJson(chunk) {
             })
         });
     });
-    console.log(queries)
     return queries;
 }
 
@@ -649,6 +687,9 @@ export function buildUserJson(chunk) {
         $.each(allowedToDelegate, (_, comp) =>{
             queries.delegate.props.push({name: name, comp: comp});
         });
+
+        let spnTargets = user.SPNTargets;
+        processSPNTargetArray(spnTargets, name, queries);
     });
     return queries;
 }
@@ -669,6 +710,7 @@ export function buildComputerJson(chunk) {
         let localadmins = comp.LocalAdmins;
         let rdpers = comp.RemoteDesktopUsers;
         let primarygroup = comp.PrimaryGroup;
+        let allowedtoact = comp.AllowedToAct;
         let dcom = comp.DcomUsers;
 
         if (!queries.properties) {
@@ -727,6 +769,21 @@ export function buildComputerJson(chunk) {
             let p = { name: name, target: aName };
             insert(queries, hash, statement, p);
         });
+
+        $.each(allowedtoact, function (_, atau) {
+            let aType = atau.Type;
+            let aName = atau.Name;
+            let rel = "AllowedToAct";
+
+            let hash = rel + aType;
+
+            let statement = baseQuery.format(aType, rel);
+            let p = { name: name, target: aName };
+            insert(queries, hash, statement, p);
+        });
+
+        let aces = comp.Aces;
+        processAceArray(aces, name, "Computer", queries);
 
         let allowedToDelegate = comp.AllowedToDelegate;
         $.each(allowedToDelegate, (_, comp) =>{
